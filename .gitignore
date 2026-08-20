@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# 배포용 백엔드 주소는 비밀 값이 아니라 커밋한다
+!.env.production
 
 # vercel
 .vercel

@@ -18,10 +18,14 @@ export function SiteHeader() {
   return (
     <header className="border-b border-line bg-bg">
       <div className="mx-auto flex h-16 max-w-[71.25rem] items-center gap-10 px-[1.75rem]">
-        <div className="flex items-center gap-[0.5625rem] text-base font-bold tracking-[-0.01em]">
+        <Link
+          href="/"
+          aria-label="다시, 학교 홈으로"
+          className="flex items-center gap-[0.5625rem] text-base font-bold tracking-[-0.01em] transition-opacity hover:opacity-70"
+        >
           <LogoMark />
           다시, 학교
-        </div>
+        </Link>
 
         <nav className="flex flex-1 gap-[1.625rem]">
           {NAV.map((item) => (
