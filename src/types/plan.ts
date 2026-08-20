@@ -33,7 +33,7 @@ export interface TableCell {
 }
 
 export type Block =
-  | { kind: "p"; text: RichText }
+  | { kind: "p"; text: RichText; /** 담당자가 고친 문단 — 근거 연결이 없다 */ edited?: boolean }
   | { kind: "h3"; text: string }
   | { kind: "metrics"; items: Metric[] }
   | { kind: "kv"; rows: { key: string; value: RichText }[] }

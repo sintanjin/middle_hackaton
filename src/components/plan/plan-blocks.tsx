@@ -42,33 +42,60 @@ function gap(kind: Block["kind"], first: boolean) {
   }
 }
 
+/**
+ * 자유 편집을 허용하는 블록 종류.
+ *
+ * <p>표·정의목록·지표 카드는 제외한다. contentEditable 로 자유롭게 고치면 구조가 무너지고,
+ * 서버는 그 결과를 문단 하나로밖에 되돌릴 수 없다. 산문만 고치게 둔다.
+ */
+const EDITABLE_KINDS = new Set<Block["kind"]>(["p", "h3", "note", "notice", "highlight"]);
+
 function BlockView({
   block,
   first,
   evidence,
+  index,
+  editing,
 }: {
   block: Block;
   first: boolean;
   evidence: Evidence[];
+  /** 섹션 안에서의 위치 — 서버가 어느 문단인지 식별하는 값 */
+  index: number;
+  editing: boolean;
 }) {
   const m = gap(block.kind, first);
+  const canEdit = editing && EDITABLE_KINDS.has(block.kind);
+  // 수정된 문단은 근거가 떨어져 있으므로 표시로 구분한다
+  const editedMark = "edited" in block && block.edited ? " border-l-[3px] border-indigo pl-[0.75rem]" : "";
+  const edit = {
+    "data-block-index": index,
+    contentEditable: canEdit,
+    suppressContentEditableWarning: true,
+    className: canEdit ? "outline-none focus:bg-lavender/40 rounded-[0.25rem]" : "",
+  };
 
   switch (block.kind) {
     case "h3":
       return (
-        <h3 className={`mb-[0.625rem] text-sm font-bold ${m}`}>{block.text}</h3>
+        <h3 {...edit} className={`mb-[0.625rem] text-sm font-bold ${m} ${edit.className}`}>
+          {block.text}
+        </h3>
       );
 
     case "p":
       return (
-        <p className={`text-[0.90625rem] ${m}`}>
+        <p {...edit} className={`text-[0.90625rem] ${m}${editedMark} ${edit.className}`}>
           <Rich nodes={block.text} />
         </p>
       );
 
     case "note":
       return (
-        <p className={`mb-[0.875rem] text-[0.8125rem] text-muted ${m}`}>
+        <p
+          {...edit}
+          className={`mb-[0.875rem] text-[0.8125rem] text-muted ${m} ${edit.className}`}
+        >
           <Rich nodes={block.text} />
         </p>
       );
@@ -202,8 +229,7 @@ export function PlanSectionView({
   return (
     <section
       id={section.id}
-      contentEditable={editing}
-      suppressContentEditableWarning
+      data-section-id={section.id}
       className={`mb-[1rem] scroll-mt-[1.25rem] rounded-[1.125rem] bg-surface px-[1.875rem] pt-[1.625rem] pb-[1.75rem] ${
         editing ? "editing-section" : ""
       }`}
@@ -213,7 +239,14 @@ export function PlanSectionView({
         {section.title}
       </h2>
       {section.blocks.map((block, i) => (
-        <BlockView key={i} block={block} first={i === 0} evidence={evidence} />
+        <BlockView
+          key={i}
+          block={block}
+          first={i === 0}
+          evidence={evidence}
+          index={i}
+          editing={editing}
+        />
       ))}
     </section>
   );

@@ -7,8 +7,8 @@ import { PlanSectionView } from "@/components/plan/plan-blocks";
 import { PlanToc } from "@/components/plan/plan-toc";
 import { addHistory } from "@/lib/history-store";
 import { Pill } from "@/components/ui/pill";
-import { exportPlanPdf } from "@/lib/api";
-import type { PlanDocument, PlanLabel } from "@/types/plan";
+import { exportPlanPdf, savePlanEdits, type PlanEdit } from "@/lib/api";
+import type { Block, InlineNode, PlanDocument, PlanLabel } from "@/types/plan";
 import type { School } from "@/types/school";
 
 interface TipTarget {
@@ -24,10 +24,37 @@ const BTN_GHOST =
 const BTN_PRIMARY =
   "rounded-[0.6875rem] bg-indigo px-[1.125rem] py-[0.6875rem] text-[0.875rem] font-bold text-white hover:bg-indigo-deep";
 
-export function PlanView({ school, plan }: { school: School; plan: PlanDocument }) {
+/** 블록의 원래 문구. DOM 에서 읽은 값과 비교해 무엇이 바뀌었는지 가린다. */
+function blockPlainText(block: Block): string | null {
+  const flatten = (nodes: InlineNode[]) =>
+    nodes
+      .map((n) => (typeof n === "string" ? n : "unknown" in n ? n.unknown : n.text))
+      .join("");
+
+  switch (block.kind) {
+    case "h3":
+      return block.text;
+    case "p":
+    case "note":
+    case "notice":
+    case "highlight":
+      return flatten(block.text);
+    default:
+      // 표·정의목록 등 구조 블록은 편집 대상이 아니다
+      return null;
+  }
+}
+
+/** 눈에 보이는 공백 차이만으로 "수정됨" 처리되지 않게 정규화한다 */
+const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
+
+export function PlanView({ school, plan: initialPlan }: { school: School; plan: PlanDocument }) {
+  const [plan, setPlan] = useState(initialPlan);
   const [mode, setMode] = useState<Mode>("draft");
   const [showEvidence, setShowEvidence] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [tip, setTip] = useState<TipTarget | null>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -78,6 +105,46 @@ export function PlanView({ school, plan }: { school: School; plan: PlanDocument 
     setMode("draft");
   };
 
+  /**
+   * 편집한 문단을 서버에 저장한다.
+   *
+   * <p>contentEditable 은 DOM 에서만 바뀌므로, 저장하지 않으면 페이지를 벗어나는 순간 사라진다.
+   * 바뀐 문단만 골라 보내고, 서버는 원본 스냅샷을 그대로 둔 채 덮어쓸 문단만 보관한다.
+   */
+  const saveEdit = async () => {
+    const edits: PlanEdit[] = [];
+    plan.sections.forEach((section) => {
+      const root = document.querySelector(`[data-section-id="${section.id}"]`);
+      if (!root) return;
+      section.blocks.forEach((block, index) => {
+        const original = blockPlainText(block);
+        if (original === null) return;
+        const el = root.querySelector<HTMLElement>(`[data-block-index="${index}"]`);
+        if (!el) return;
+        const current = el.innerText ?? "";
+        if (normalize(current) !== normalize(original) && normalize(current).length > 0) {
+          edits.push({ sectionId: section.id, blockIndex: index, text: normalize(current) });
+        }
+      });
+    });
+
+    if (edits.length === 0) {
+      setMode("draft");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      setPlan(await savePlanEdits(plan.id, edits));
+      setResetKey((k) => k + 1);   // 서버 응답으로 다시 그린다
+      setMode("draft");
+    } catch {
+      setSaveError("수정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const labels: PlanLabel[] = editing
     ? [{ text: "수정 중", tone: "solid" }, ...plan.labels.slice(1)]
     : plan.labels;
@@ -108,6 +175,11 @@ export function PlanView({ school, plan }: { school: School; plan: PlanDocument 
             <div className="mt-[0.5rem] text-[0.875rem] text-muted">
               {school.name} · {school.address} · 생성일 {plan.createdAt}
             </div>
+            {saveError && (
+              <div className="mt-[0.625rem] text-[0.8125rem] font-medium text-amber">
+                {saveError}
+              </div>
+            )}
             {editing && (
               <div className="mt-[0.625rem] text-[0.8125rem] font-medium text-indigo-deep">
                 수정 모드입니다. 본문을 클릭해 내용을 직접 고칠 수 있습니다.
@@ -121,8 +193,13 @@ export function PlanView({ school, plan }: { school: School; plan: PlanDocument 
                 <button type="button" onClick={cancelEdit} className={BTN_GHOST}>
                   취소
                 </button>
-                <button type="button" onClick={() => setMode("draft")} className={BTN_PRIMARY}>
-                  수정 완료
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void saveEdit()}
+                  className={BTN_PRIMARY}
+                >
+                  {saving ? "저장 중…" : "수정 완료"}
                 </button>
               </>
             ) : (

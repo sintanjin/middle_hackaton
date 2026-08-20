@@ -86,6 +86,24 @@ export function generatePlan(schoolId: string): Promise<PlanDocument> {
   });
 }
 
+/** 담당자가 고친 문단 하나 */
+export interface PlanEdit {
+  sectionId: string;
+  blockIndex: number;
+  text: string;
+}
+
+/**
+ * 담당자 수정을 저장한다. 원본은 서버에 그대로 남고 덮어쓸 문단만 보관된다.
+ * 빈 배열을 보내면 수정이 모두 취소된다.
+ */
+export function savePlanEdits(planId: string, edits: PlanEdit[]): Promise<PlanDocument> {
+  return request<PlanDocument>(`/plans/${encodeURIComponent(planId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ edits }),
+  });
+}
+
 /** 보고서 PDF 를 내려받는다. */
 export async function exportPlanPdf(planId: string, filename: string): Promise<void> {
   const res = await fetch(`${BASE}/plans/${encodeURIComponent(planId)}/export`, {
