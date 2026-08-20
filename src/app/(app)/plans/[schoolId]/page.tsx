@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PlanView } from "@/components/plan/plan-view";
-import { MOCK_PLAN } from "@/lib/mock-plan";
-import { MOCK_SCHOOLS } from "@/lib/mock-schools";
+import { PlanLoader } from "@/components/plan/plan-loader";
+import { fetchLatestPlan, fetchSchools } from "@/lib/api";
 
 export const metadata: Metadata = { title: "활용계획안" };
+
+export const dynamic = "force-dynamic";
 
 export default async function PlanPage({
   params,
@@ -13,9 +14,12 @@ export default async function PlanPage({
 }) {
   const { schoolId } = await params;
 
-  // TODO: 백엔드 /plans/generate 연결 시 교체 (현재는 폐교 조회 + 목 기획안)
-  const school = MOCK_SCHOOLS.find((s) => s.id === schoolId);
+  const schools = await fetchSchools().catch(() => []);
+  const school = schools.find((s) => s.id === schoolId);
   if (!school) notFound();
 
-  return <PlanView school={school} plan={MOCK_PLAN} />;
+  // 이미 만들어 둔 기획안이 있으면 그대로 쓴다. 없으면 클라이언트가 생성한다.
+  const plan = await fetchLatestPlan(schoolId).catch(() => null);
+
+  return <PlanLoader school={school} initialPlan={plan} />;
 }

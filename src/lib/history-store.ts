@@ -1,94 +1,91 @@
 import type { HistoryEntry } from "@/types/history";
+import { deleteAllHistory, deleteHistory, fetchHistory, postHistory } from "@/lib/api";
 
 /**
- * 최근 기록 저장소. 백엔드가 없는 동안 브라우저 localStorage 에 담는다.
- * React 에서는 useSyncExternalStore 로 구독한다 (subscribe / getSnapshot).
- * 서버 연동 시 read·add·clear 세 함수만 API 호출로 바꾸면 된다.
+ * 최근 기록 저장소. 서버(/history)에 보관한다.
+ *
+ * 화면은 useSyncExternalStore 로 구독하므로 스냅샷은 동기여야 한다.
+ * 그래서 메모리 캐시를 두고, 서버 응답이 오면 캐시를 바꾼 뒤 구독자에게 알린다.
+ * 쓰기는 낙관적으로 반영하지 않는다 — 서버 응답을 받은 뒤 다시 읽어 상태를 맞춘다.
  */
-
-const KEY = "dasi-school:history";
-/** 표시 기간 — 화면 안내문("최근 30일")과 같은 값 */
-const DAYS = 30;
-/** 저장 상한 */
-const MAX = 50;
 
 /** 서버 렌더 및 스냅샷 캐시용 고정 빈 배열 (참조가 매번 바뀌면 무한 렌더가 된다) */
 const EMPTY: HistoryEntry[] = [];
 
-let cache: HistoryEntry[] | null = null;
+let cache: HistoryEntry[] = EMPTY;
+let loaded = false;
+let inFlight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
-function invalidate() {
-  cache = null;
-  listeners.forEach((notify) => notify());
+function notify() {
+  listeners.forEach((fn) => fn());
 }
 
-/** 최근 30일 기록을 최신순으로 읽는다 (클라이언트에서만 동작) */
-function read(): HistoryEntry[] {
-  if (typeof window === "undefined") return EMPTY;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return EMPTY;
-    const list = JSON.parse(raw) as HistoryEntry[];
-    const cutoff = Date.now() - DAYS * 24 * 60 * 60 * 1000;
-    return list.filter((e) => new Date(e.createdAt).getTime() >= cutoff);
-  } catch {
-    // 저장 형식이 깨졌거나 localStorage 를 쓸 수 없는 경우
-    return EMPTY;
-  }
+/** 서버에서 다시 읽어 캐시를 채운다. 동시에 여러 번 불려도 요청은 한 번만 나간다. */
+function refresh(): Promise<void> {
+  if (inFlight) return inFlight;
+  inFlight = fetchHistory()
+    .then((list) => {
+      cache = list.length === 0 ? EMPTY : list;
+    })
+    .catch(() => {
+      // 서버가 없거나 실패해도 화면을 막지 않는다. 목록이 비어 보일 뿐이다.
+      cache = EMPTY;
+    })
+    .finally(() => {
+      loaded = true;
+      inFlight = null;
+      notify();
+    });
+  return inFlight;
 }
 
 export function subscribeHistory(onChange: () => void) {
   listeners.add(onChange);
-  // 다른 탭에서의 변경도 반영한다
-  window.addEventListener("storage", invalidate);
+  if (!loaded) void refresh();
   return () => {
     listeners.delete(onChange);
-    window.removeEventListener("storage", invalidate);
   };
 }
 
 /** 같은 내용이면 같은 참조를 돌려줘야 하므로 캐시를 둔다 */
 export function getHistorySnapshot(): HistoryEntry[] {
-  if (cache === null) cache = read();
   return cache;
 }
 
-/** 서버 렌더 시점에는 localStorage 를 읽을 수 없다 */
+/** 서버 렌더 시점에는 아직 가져온 것이 없다 */
 export function getHistoryServerSnapshot(): HistoryEntry[] {
   return EMPTY;
 }
 
-function write(list: HistoryEntry[]) {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(list));
-  } catch {
-    // 저장 실패(용량·프라이버시 모드)는 기능을 막지 않는다
-  }
-  invalidate();
-}
-
 /** 기록 한 줄을 추가한다 */
-export function addHistory(entry: { title: string; sub: string; href?: string }) {
-  if (typeof window === "undefined") return;
-  write(
-    [
-      { id: crypto.randomUUID(), ...entry, createdAt: new Date().toISOString() },
-      ...getHistorySnapshot(),
-    ].slice(0, MAX),
-  );
+export async function addHistory(entry: { title: string; sub: string; href?: string }) {
+  try {
+    await postHistory(entry);
+  } catch {
+    // 기록 실패가 본래 작업(기획안 생성·내보내기)을 막지 않는다
+    return;
+  }
+  await refresh();
 }
 
 /** 기록 한 줄을 삭제한다 */
-export function removeHistory(id: string) {
-  if (typeof window === "undefined") return;
-  write(getHistorySnapshot().filter((entry) => entry.id !== id));
+export async function removeHistory(id: string) {
+  try {
+    await deleteHistory(id);
+  } catch {
+    return;
+  }
+  await refresh();
 }
 
-export function clearHistory() {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(KEY);
-  invalidate();
+export async function clearHistory() {
+  try {
+    await deleteAllHistory();
+  } catch {
+    return;
+  }
+  await refresh();
 }
 
 /** 시안 표기 규칙: 오늘 20:41 / 어제 16:37 / 8. 18. */

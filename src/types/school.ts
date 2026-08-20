@@ -21,10 +21,10 @@ export interface School {
   /** 목록 배지에 쓰는 읍·면·동 단위 표기 */
   district: string;
   closedYear: number;
-  /** 대지면적 (m²) */
-  siteArea: number;
-  /** 교실 수 (실) */
-  classroomCount: number;
+  /** 대지면적 (m²). 공개 데이터에 값이 없거나 신뢰할 수 없으면 null */
+  siteArea: number | null;
+  /** 교실 수 (실). 공개 데이터에 없으므로 대부분 null — 추정하지 않는다 */
+  classroomCount: number | null;
   /** 부속시설 (강당, 급식실 등) */
   annexFacility: string;
   usageStatus: UsageStatus;

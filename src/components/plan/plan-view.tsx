@@ -7,6 +7,7 @@ import { PlanSectionView } from "@/components/plan/plan-blocks";
 import { PlanToc } from "@/components/plan/plan-toc";
 import { addHistory } from "@/lib/history-store";
 import { Pill } from "@/components/ui/pill";
+import { exportPlanPdf } from "@/lib/api";
 import type { PlanDocument, PlanLabel } from "@/types/plan";
 import type { School } from "@/types/school";
 
@@ -26,6 +27,7 @@ const BTN_PRIMARY =
 export function PlanView({ school, plan }: { school: School; plan: PlanDocument }) {
   const [mode, setMode] = useState<Mode>("draft");
   const [showEvidence, setShowEvidence] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [tip, setTip] = useState<TipTarget | null>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -130,16 +132,25 @@ export function PlanView({ school, plan }: { school: School; plan: PlanDocument 
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    addHistory({
-                      title: school.name,
-                      sub: `보고서 내보내기 · ${plan.title}`,
-                      href: `/plans/${school.id}`,
-                    })
-                  }
+                  disabled={exporting}
+                  onClick={async () => {
+                    setExporting(true);
+                    try {
+                      await exportPlanPdf(plan.id, plan.title);
+                      await addHistory({
+                        title: school.name,
+                        sub: `보고서 내보내기 · ${plan.title}`,
+                        href: `/plans/${school.id}`,
+                      });
+                    } catch {
+                      // 실패해도 화면은 유지한다
+                    } finally {
+                      setExporting(false);
+                    }
+                  }}
                   className={BTN_PRIMARY}
                 >
-                  보고서로 내보내기
+                  {exporting ? "만드는 중…" : "보고서로 내보내기"}
                 </button>
               </>
             )}

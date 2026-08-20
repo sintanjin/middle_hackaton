@@ -41,8 +41,18 @@ export function SchoolDetail({ school }: { school: School }) {
 
       <dl className="grid grid-cols-4 gap-[0.625rem] px-[1.875rem] pt-[1.375rem] pb-[0.25rem]">
         <Fact label="폐교연도" value={String(school.closedYear)} />
-        <Fact label="대지면적" value={`${school.siteArea.toLocaleString("ko-KR")}m²`} />
-        <Fact label="교실 수" value={`${school.classroomCount}실`} />
+        <Fact
+          label="대지면적"
+          value={
+            school.siteArea === null
+              ? "확인 필요"
+              : `${school.siteArea.toLocaleString("ko-KR")}m²`
+          }
+        />
+        <Fact
+          label="교실 수"
+          value={school.classroomCount === null ? "확인 필요" : `${school.classroomCount}실`}
+        />
         <Fact label="부속시설" value={school.annexFacility} />
       </dl>
 

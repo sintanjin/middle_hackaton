@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
 import { SchoolReviewBoard } from "@/components/school/school-review-board";
-import { MOCK_SCHOOLS } from "@/lib/mock-schools";
+import { fetchSchools } from "@/lib/api";
+import type { School } from "@/types/school";
 
 export const metadata: Metadata = { title: "홈" };
 
-export default function HomePage() {
-  // TODO: 백엔드 폐교 목록 API 연결 시 MOCK_SCHOOLS 교체
-  const schools = MOCK_SCHOOLS;
+/** 목록은 매 요청 시 서버에서 가져온다. 폐교 자료는 자주 바뀌지 않지만 캐시로 굳히지 않는다. */
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  let schools: School[];
+  try {
+    schools = await fetchSchools();
+  } catch {
+    // 백엔드가 내려가 있어도 화면 자체는 뜨게 한다
+    schools = [];
+  }
 
   return (
     <main className="mx-auto max-w-[71.25rem] px-[1.75rem] pt-[2.75rem] pb-[3.5rem]">
@@ -25,7 +34,16 @@ export default function HomePage() {
         </button>
       </div>
 
-      <SchoolReviewBoard schools={schools} />
+      {schools.length === 0 ? (
+        <div className="rounded-[0.875rem] border border-line bg-surface px-[1.75rem] py-[3rem] text-center">
+          <p className="text-[0.9375rem] font-medium">폐교 목록을 불러오지 못했습니다.</p>
+          <p className="mt-2 text-[0.84375rem] text-muted">
+            백엔드 서버가 실행 중인지 확인해 주세요. (NEXT_PUBLIC_API_BASE_URL)
+          </p>
+        </div>
+      ) : (
+        <SchoolReviewBoard schools={schools} />
+      )}
     </main>
   );
 }

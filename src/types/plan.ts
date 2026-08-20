@@ -76,6 +76,10 @@ export interface PlanLabel {
 }
 
 export interface PlanDocument {
+  /** 서버가 부여한 기획안 ID. 보고서 내보내기에 쓴다 */
+  id: string;
+  /** 어느 폐교의 기획안인지 */
+  schoolId: string;
   title: string;
   /** 생성일 표기 (예: "2026. 8. 20.") */
   createdAt: string;
