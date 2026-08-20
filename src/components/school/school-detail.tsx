@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { addHistory } from "@/lib/history-store";
 import { Pill } from "@/components/ui/pill";
-import type { School } from "@/types/school";
+import type { School, UsageStatus } from "@/types/school";
 
 /** 기본정보 4칸 (.facts) */
 function Fact({ label, value }: { label: string; value: string }) {
@@ -23,6 +23,13 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** 활용 상태별 배지 색. 미활용만 주황으로 눈에 띄게 하고 나머지는 구분만 준다. */
+function statusTone(status: UsageStatus) {
+  if (status === "미활용") return "amber" as const;
+  if (status === "대부") return "default" as const;
+  return "plain" as const; // 자체활용
+}
+
 export function SchoolDetail({ school }: { school: School }) {
   return (
     <div className="overflow-hidden rounded-[1.125rem] bg-surface">
@@ -32,7 +39,7 @@ export function SchoolDetail({ school }: { school: School }) {
           <div className="mt-[0.3125rem] text-[0.84375rem] text-muted">{school.address}</div>
         </div>
         <div className="text-right">
-          <Pill tone={school.usageStatus === "미활용" ? "amber" : "default"}>
+          <Pill tone={statusTone(school.usageStatus)}>
             {school.usageStatus}
           </Pill>
           <div className="mt-[0.4375rem] text-[0.78125rem] text-faint">기준일 {school.dataAsOf}</div>

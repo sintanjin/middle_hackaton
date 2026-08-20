@@ -7,7 +7,7 @@ import type { School, UsageStatus } from "@/types/school";
 
 type Tab = "전체" | UsageStatus;
 
-const TABS: Tab[] = ["전체", "미활용", "일부활용"];
+const TABS: Tab[] = ["전체", "미활용", "대부", "자체활용"];
 
 /** 한 번에 보여주는 목록 개수 (더보기 단위) */
 const PAGE_SIZE = 3;

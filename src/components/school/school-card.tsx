@@ -1,5 +1,12 @@
 import { Pill } from "@/components/ui/pill";
-import type { School } from "@/types/school";
+import type { School, UsageStatus } from "@/types/school";
+
+/** 활용 상태별 배지 색. 미활용만 주황으로 눈에 띄게 하고 나머지는 구분만 준다. */
+function statusTone(status: UsageStatus) {
+  if (status === "미활용") return "amber" as const;
+  if (status === "대부") return "default" as const;
+  return "plain" as const; // 자체활용
+}
 
 export function SchoolCard({
   school,
@@ -21,7 +28,7 @@ export function SchoolCard({
     >
       <div className="flex items-baseline justify-between gap-[0.625rem]">
         <h3 className="text-base font-bold tracking-[-0.01em]">{school.name}</h3>
-        <Pill tone={school.usageStatus === "미활용" ? "amber" : "default"}>
+        <Pill tone={statusTone(school.usageStatus)}>
           {school.usageStatus}
         </Pill>
       </div>
