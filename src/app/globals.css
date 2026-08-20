@@ -1,26 +1,72 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, sans-serif;
+
+  --color-bg: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-ink: #191a23;
+  --color-muted: #7a7d8c;
+  --color-faint: #a9acba;
+  --color-line: #e8e9f0;
+  --color-indigo: #5b5bd6;
+  --color-indigo-deep: #4646c6;
+  --color-lavender: #ededfb;
+  --color-amber: #a2701f;
+  --color-amber-tint: #f8f1e2;
+
+  /* 기획안 화면 전용 */
+  --color-claim: #c2c3ee;      /* 근거 연결 문장의 점선 밑줄 */
+  --color-switch-off: #d4d6e0; /* 근거 표시 토글 off */
+  --color-tip-id: #b9b9f2;     /* 툴팁 내 근거 ID */
+  --color-tip-src: #c7c9d4;    /* 툴팁 내 출처 */
+  --color-claim-edit: #e0e1f5; /* 편집 중 근거 문장 밑줄 */
+  --color-edit-outline: #b9baee; /* 편집 가능 섹션 외곽선 */
+  --color-danger: #d14343;       /* 로그아웃 등 되돌릴 수 없는 동작 */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  /*
+   * 화면 크기에 따라 UI 전체가 같은 비율로 확대·축소된다.
+   * 모든 치수를 rem으로 두고 루트 font-size만 뷰포트에 연동한다.
+   *
+   *   calc(100vw / 90)  뷰포트 1440px = 16px (시안 기준 배율 1.0)
+   *   상한 1.25rem      뷰포트 1800px 이상에서는 더 커지지 않음
+   *   하한 0.75rem      뷰포트 1080px 이하에서는 더 작아지지 않고,
+   *                     그 아래부터는 축소 대신 가로로 넘쳐 잘린다
+   */
+  html {
+    font-size: clamp(0.75rem, calc(100vw / 90), 1.25rem);
+    scroll-behavior: smooth;
+    /* 하한 도달 후에는 리플로우 없이 잘리고, 필요할 때만 가로 스크롤로 닿는다 */
+    overflow-x: auto;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    font-size: 0.9375rem; /* 시안 15px */
+    line-height: 1.55;
+    /*
+     * 시안 전체 폭(1140px = 71.25rem)을 하한으로 박아 컨테이너가 눌리지 않게 한다.
+     * 이게 없으면 max-width가 뷰포트에 맞춰 줄어들면서 안쪽 요소가 재배치된다.
+     * 헤더·푸터의 배경과 구분선도 이 폭까지 함께 늘어난다.
+     */
+    min-width: 71.25rem;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /*
+   * 편집 모드에서 섹션이 편집 가능함을 알리는 외곽선.
+   * 포커스된 섹션만 실선·indigo 로 강조된다.
+   */
+  .editing-section {
+    outline: 1.5px dashed var(--color-edit-outline);
+    outline-offset: 2px;
+  }
+
+  .editing-section:focus-within {
+    outline-style: solid;
+    outline-color: var(--color-indigo);
+  }
 }
